@@ -1,4 +1,9 @@
-github.com/beevik/guid v0.0.0-20170504223318-d0ea8faecee0 h1:oLd/YLOTOgA4D4aAUhIE8vhl/LAP1ZJrj0mDQpl7GB8=
-github.com/beevik/guid v0.0.0-20170504223318-d0ea8faecee0/go.mod h1:XzXWuOd1wJ63MtICHh5+PnvCuxsB/d58T8TswEhI/9I=
+github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
+github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/jochasinga/gtime v0.0.0-20160422115147-74381b863c28/go.mod h1:u0ihPtFrhBpWAVhA2RXtJMbs8og4zQC48M22I+hpaGc=
+github.com/jochasinga/relay v0.0.0-20161125200856-6a088273228f/go.mod h1:qlpuzDguMQeZebM9+/rTCxDTXmN3oN1ctP+zcX3AejM=
+github.com/jochasinga/requests v0.0.0-20160909035013-af9bbdb4ab2c/go.mod h1:pFstjdZQq8NNHzzPgLHX1ECbFxjbYYpc0+C+4UzRUiY=
+github.com/masahiro331/go-vmdk-parser v0.0.0-20211230085158-c846df893199 h1:KgFzBCL7oMbpHngJzMx1uP84jlYxSU56lRy7S29dB3A=
+github.com/masahiro331/go-vmdk-parser v0.0.0-20211230085158-c846df893199/go.mod h1:AECsEHXqn3X0cAEPKnmub1yBeTWbx8Wv+Zl+TGhJDJ0=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
