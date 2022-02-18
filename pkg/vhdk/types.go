@@ -3,17 +3,9 @@ package vhdk
 import (
 	"fmt"
 	"github.com/google/uuid"
-	"os"
 )
 
 type PayloadState int
-
-type VHDX struct {
-	file                   *os.File
-	HeaderSection          HeaderSection // 1MB Align
-	MetadataTable          MetadataTable
-	BitmapAllocationGroups []BAT
-}
 
 type HeaderSection struct {
 	FileIdentifer FileIdentifer  // 64KB Align
@@ -106,17 +98,17 @@ type FileParameter struct {
 
 type Permission uint8
 
-// IsUser required  TODO: implementation
+// IsUser required
 func (p Permission) IsUser() bool {
 	return p&1 == 1
 }
 
-// IsVirtualDisk required  TODO: implementation
+// IsVirtualDisk required
 func (p Permission) IsVirtualDisk() bool {
 	return p&2 == 2
 }
 
-// IsRequired required  TODO: implementation
+// IsRequired required
 func (p Permission) IsRequired() bool {
 	return p&4 == 4
 }

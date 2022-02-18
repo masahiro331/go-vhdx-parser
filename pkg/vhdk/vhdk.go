@@ -6,15 +6,96 @@ import (
 	"github.com/google/uuid"
 	"io"
 	"log"
+	"math"
 	"os"
 
 	"github.com/masahiro331/go-vhdx-parser/pkg/utils"
 	"golang.org/x/xerrors"
 )
 
-func NewVHDX(f *os.File) (*VHDX, error) {
+var _ io.ReaderAt = VHDX{}
+var _ io.ReadSeekCloser = VHDX{}
+
+type VHDX struct {
+	HeaderSection          HeaderSection // 1MB Align
+	MetadataTable          MetadataTable
+	BitmapAllocationGroups []BAT
+
+	file *os.File
+	off  int64
+}
+
+func (v VHDX) Read(p []byte) (n int, err error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (v VHDX) Seek(offset int64, whence int) (int64, error) {
+	switch whence {
+	case io.SeekStart:
+	case io.SeekCurrent:
+	case io.SeekEnd:
+	}
+
+	//TODO implement me
+	panic("implement me")
+}
+
+func (v VHDX) Reset() error {
+	if len(v.BitmapAllocationGroups) == 0 {
+		return xerrors.New("invalid bit map allocation groups length,  empty error")
+	}
+	startBat := BAT{FileOffset: math.MaxInt64}
+	for _, b := range v.BitmapAllocationGroups {
+		if b.FileOffset != 0 && b.FileOffset < startBat.FileOffset {
+			startBat = b
+		}
+	}
+	_, err := v.file.Seek(int64(startBat.FileOffset*uint64(_1MB)), 0)
+	if err != nil {
+		return xerrors.Errorf("failed to seek to %d error: %w", startBat.State, err)
+	}
+	return nil
+}
+
+func (v VHDX) blockSize() int {
+	return int(v.MetadataTable.SystemData.FileParameter.BlockSize)
+}
+
+func (v VHDX) currentPhysicalOffset() int64 {
+	off, _ := v.file.Seek(0, io.SeekCurrent)
+	return off
+}
+
+func (v VHDX) ReadAt(p []byte, off int64) (n int, err error) {
+	for _, bat := range v.BitmapAllocationGroups {
+		switch bat.State {
+		case PAYLOAD_BLOCK_NOT_PRESENT:
+		case PAYLOAD_BLOCK_UNDEFINED:
+		case PAYLOAD_BLOCK_ZERO:
+		case PAYLOAD_BLOCK_UNMAPPED:
+		case PAYLOAD_BLOCK_FULLY_PRESENT:
+			// _, err := v.file.Seek(int64(bat.FileOffset*uint64(_1MB)), 0)
+			// r := io.LimitReader(v.file, int64(v.MetadataTable.SystemData.FileParameter.BlockSize))
+
+		case PAYLOAD_BLOCK_PARTIALLY_PRESENT:
+		default:
+		}
+	}
+	return 0, nil
+}
+
+func (v VHDX) Close() error {
+	return v.file.Close()
+}
+
+func Open(name string) (*VHDX, error) {
+	f, err := os.Open(name)
+	if err != nil {
+		return nil, xerrors.Errorf("failed to open %s: %w", name, err)
+	}
+
 	v := VHDX{file: f}
-	var err error
 	v.HeaderSection, err = parseHeaderSection(f)
 	if err != nil {
 		return nil, err
@@ -82,26 +163,11 @@ func NewVHDX(f *os.File) (*VHDX, error) {
 			log.Println(entry.GUID.String())
 		}
 	}
-	of, _ := os.Create("output.file")
-	for _, bat := range v.BitmapAllocationGroups {
-		switch bat.State {
-		case PAYLOAD_BLOCK_NOT_PRESENT:
-		case PAYLOAD_BLOCK_UNDEFINED:
-		case PAYLOAD_BLOCK_ZERO:
-		case PAYLOAD_BLOCK_UNMAPPED:
-		case PAYLOAD_BLOCK_FULLY_PRESENT:
-			_, err := f.Seek(int64(bat.FileOffset*uint64(_1MB)), 0)
-			if err != nil {
-				return nil, xerrors.Errorf("failed to seek to %d error: %w", bat.State, err)
-			}
-			r := io.LimitReader(f, int64(v.MetadataTable.SystemData.FileParameter.BlockSize))
-			io.Copy(of, r)
 
-		case PAYLOAD_BLOCK_PARTIALLY_PRESENT:
-		default:
-		}
+	if err = v.Reset(); err != nil {
+		return nil, xerrors.Errorf("failed to seek initial offset: %w", err)
 	}
-	return nil, nil
+	return &v, nil
 }
 
 func (e *MetadataTableEntry) physicalSectorSize(b []byte) (uint32, error) {
