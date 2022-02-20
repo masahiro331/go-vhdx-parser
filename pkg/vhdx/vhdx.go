@@ -3,6 +3,7 @@ package vhdx
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"github.com/google/uuid"
 	"io"
 	"log"
@@ -60,7 +61,8 @@ func (v VHDX) ReadAt(p []byte, off int64) (n int, err error) {
 
 	switch bat.State {
 	case PAYLOAD_BLOCK_NOT_PRESENT, PAYLOAD_BLOCK_UNDEFINED, PAYLOAD_BLOCK_UNMAPPED, PAYLOAD_BLOCK_PARTIALLY_PRESENT:
-		return 0, xerrors.Errorf("unsupported bat state: %d", bat.State)
+		fmt.Printf("%+v\n", v.sinfo)
+		return 0, xerrors.Errorf("unsupported bat state: %d, bat index: %d", bat.State, v.sinfo.batIndex)
 	case PAYLOAD_BLOCK_ZERO:
 		buf := bytes.NewBuffer(make([]byte, SupportSectorSize))
 		if int64(len(p)) > v.sinfo.bytesAvailable {
@@ -88,9 +90,9 @@ func (v VHDX) TranslateOffset(physicalOffset int64) (*VHDXStateInfo, error) {
 	secNumber := physicalOffset / int64(v.MetadataTable.SystemData.LogicalSectorSize)
 
 	batIndex := int(secNumber) >> v.state.sectorPerBlockBits
+	blockOffset := secNumber - int64(batIndex<<v.state.sectorPerBlockBits)
 	batIndex += batIndex >> v.state.chunkRatioBits
 
-	blockOffset := secNumber - int64(batIndex<<v.state.sectorPerBlockBits)
 	sectorsAvail := int64(v.state.sectorPerBlock) - blockOffset
 	blockOffset = blockOffset << v.state.logicalSectorSizeBits
 
@@ -134,14 +136,7 @@ func (v VHDX) currentPhysicalOffset() int64 {
 }
 
 func (v VHDX) Size() int64 {
-	count := int64(0)
-	for _, b := range v.BlockAllocationTables {
-		if b.State == PAYLOAD_BLOCK_ZERO || b.State == PAYLOAD_BLOCK_FULLY_PRESENT {
-			count++
-		}
-	}
-	count -= count >> v.state.chunkRatioBits
-	return count * int64(v.blockSize())
+	return int64(v.MetadataTable.SystemData.VirtualDiskSize)
 }
 
 func (v VHDX) Close() error {
@@ -242,10 +237,10 @@ func Open(name string) (*io.SectionReader, error) {
 }
 
 func (v VHDX) NewState() VHDXState {
-	chunkRatio := uint32(VHDX_MAX_SECTORS_PER_BLOCK) * v.MetadataTable.SystemData.LogicalSectorSize / v.MetadataTable.SystemData.FileParameter.BlockSize
+	chunkRatio := VHDX_MAX_SECTORS_PER_BLOCK * int64(v.MetadataTable.SystemData.LogicalSectorSize) / int64(v.MetadataTable.SystemData.FileParameter.BlockSize)
 	sectorPerBlock := v.MetadataTable.SystemData.FileParameter.BlockSize / v.MetadataTable.SystemData.LogicalSectorSize
 	return VHDXState{
-		chunkRatio:            chunkRatio,
+		chunkRatio:            uint32(chunkRatio),
 		chunkRatioBits:        bits.TrailingZeros64(uint64(chunkRatio)),
 		sectorPerBlock:        sectorPerBlock,
 		sectorPerBlockBits:    bits.TrailingZeros32(sectorPerBlock),

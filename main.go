@@ -1,10 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"encoding/hex"
 	"github.com/masahiro331/go-disk"
 	"github.com/masahiro331/go-vhdx-parser/pkg/vhdx"
+	"io"
 	"log"
 	"os"
 )
@@ -14,7 +13,12 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	driver, err := disk.NewDriver(v)
+	if err != nil {
+		log.Fatal(err)
+	}
+	f, err := os.Create("primary.ext4")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -24,17 +28,12 @@ func main() {
 			log.Fatal(err)
 		}
 		if !p.Bootable() {
-			buf := bytes.NewBuffer(nil)
-			for i := 0; i < 16; i++ {
-				b := make([]byte, 512)
-				n, err := p.Read(b)
-				if err != nil || n != 512 {
-					log.Fatal("error:", n, err)
+			for {
+				_, err := io.CopyN(f, p, 512)
+				if err != nil {
+					log.Fatal(err)
 				}
-				buf.Write(b)
 			}
-			hex.Dumper(os.Stdout).Write(buf.Bytes())
-			return
 		}
 	}
 }
