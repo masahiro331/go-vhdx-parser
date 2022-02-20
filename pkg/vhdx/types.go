@@ -1,4 +1,4 @@
-package vhdk
+package vhdx
 
 import (
 	"fmt"

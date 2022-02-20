@@ -1,9 +1,11 @@
-package vhdk
+package vhdx
 
 const (
 	Code  = 0x1EDC6F41
 	_64KB = int(64 << 10)
 	_1MB  = int(1 << 20)
+
+	SupportSectorSize = 512
 
 	BitmapAllocationGroup = "6677c22d-23f6-0042-9d64-115e9bfd4a08"
 	MetadataRegion        = "06a27c8b-9047-9a4b-b8fe-575f050f886e"
@@ -20,4 +22,7 @@ const (
 	PAYLOAD_BLOCK_UNMAPPED          PayloadState = 3
 	PAYLOAD_BLOCK_FULLY_PRESENT     PayloadState = 6
 	PAYLOAD_BLOCK_PARTIALLY_PRESENT PayloadState = 7
+
+	VHDX_BAT_FILE_OFF_MASK     = 0xFFFFFFFFFF00000
+	VHDX_MAX_SECTORS_PER_BLOCK = 1 << 23
 )

@@ -1,9 +1,8 @@
 github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
 github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/jochasinga/gtime v0.0.0-20160422115147-74381b863c28/go.mod h1:u0ihPtFrhBpWAVhA2RXtJMbs8og4zQC48M22I+hpaGc=
-github.com/jochasinga/relay v0.0.0-20161125200856-6a088273228f/go.mod h1:qlpuzDguMQeZebM9+/rTCxDTXmN3oN1ctP+zcX3AejM=
-github.com/jochasinga/requests v0.0.0-20160909035013-af9bbdb4ab2c/go.mod h1:pFstjdZQq8NNHzzPgLHX1ECbFxjbYYpc0+C+4UzRUiY=
-github.com/masahiro331/go-vmdk-parser v0.0.0-20211230085158-c846df893199 h1:KgFzBCL7oMbpHngJzMx1uP84jlYxSU56lRy7S29dB3A=
-github.com/masahiro331/go-vmdk-parser v0.0.0-20211230085158-c846df893199/go.mod h1:AECsEHXqn3X0cAEPKnmub1yBeTWbx8Wv+Zl+TGhJDJ0=
+github.com/masahiro331/go-disk v0.0.0-20220215163933-bad821cdbe16 h1:dZ/I1PYM/+cp2hJozQ1IcNK1rowILmBDnM9rlCI+UKs=
+github.com/masahiro331/go-disk v0.0.0-20220215163933-bad821cdbe16/go.mod h1:FpuMk0KxP0dQr//u24anYIDeYHACnonVXyqzgGBcauI=
+github.com/masahiro331/go-disk v0.0.0-20220220145841-bf888849647c h1:6OfIjred8wYX94xkNfUiTrHtcXa5vi8CbX8DsPTnUiU=
+github.com/masahiro331/go-disk v0.0.0-20220220145841-bf888849647c/go.mod h1:FpuMk0KxP0dQr//u24anYIDeYHACnonVXyqzgGBcauI=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=

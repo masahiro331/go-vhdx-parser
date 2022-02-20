@@ -1,4 +1,4 @@
-package vhdk
+package vhdx
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"math/bits"
 	"os"
 
 	"github.com/masahiro331/go-vhdx-parser/pkg/utils"
@@ -14,39 +15,104 @@ import (
 )
 
 var _ io.ReaderAt = VHDX{}
-var _ io.ReadSeekCloser = VHDX{}
 
 type VHDX struct {
-	HeaderSection          HeaderSection // 1MB Align
-	MetadataTable          MetadataTable
-	BitmapAllocationGroups []BAT
+	HeaderSection         HeaderSection // 1MB Align
+	MetadataTable         MetadataTable
+	BlockAllocationTables []BAT
 
 	file *os.File
 	off  int64
+
+	state VHDXState
+	sinfo VHDXStateInfo
 }
 
-func (v VHDX) Read(p []byte) (n int, err error) {
-	//TODO implement me
-	panic("implement me")
+type VHDXStateInfo struct {
+	batIndex       int
+	blockOffset    int64
+	fileOffset     int64
+	bytesAvailable int64
 }
 
-func (v VHDX) Seek(offset int64, whence int) (int64, error) {
-	switch whence {
-	case io.SeekStart:
-	case io.SeekCurrent:
-	case io.SeekEnd:
+type VHDXState struct {
+	chunkRatio            uint32
+	chunkRatioBits        int
+	sectorPerBlock        uint32
+	sectorPerBlockBits    int
+	logicalSectorSizeBits int
+}
+
+func (v VHDX) ReadAt(p []byte, off int64) (n int, err error) {
+	if len(p) != SupportSectorSize {
+		return 0, xerrors.Errorf("invalid byte length %d, required %d bytes length", len(p), SupportSectorSize)
+	}
+	sinfo, err := v.TranslateOffset(off)
+	if err != nil {
+		return 0, xerrors.Errorf("failed to translate offset: %w", err)
+	}
+	v.sinfo = *sinfo
+
+	bat, err := v.bat()
+	if err != nil {
+		return 0, xerrors.Errorf("failed to get BAT: %w", err)
 	}
 
-	//TODO implement me
-	panic("implement me")
+	switch bat.State {
+	case PAYLOAD_BLOCK_NOT_PRESENT, PAYLOAD_BLOCK_UNDEFINED, PAYLOAD_BLOCK_UNMAPPED, PAYLOAD_BLOCK_PARTIALLY_PRESENT:
+		return 0, xerrors.Errorf("unsupported bat state: %d", bat.State)
+	case PAYLOAD_BLOCK_ZERO:
+		buf := bytes.NewBuffer(make([]byte, SupportSectorSize))
+		if int64(len(p)) > v.sinfo.bytesAvailable {
+			return buf.Write(p[:v.sinfo.bytesAvailable])
+		}
+		return buf.Write(p)
+	case PAYLOAD_BLOCK_FULLY_PRESENT:
+		n, err := v.file.Seek(v.sinfo.fileOffset, 0)
+		if err != nil {
+			return 0, xerrors.Errorf("failed to seek(%d): %w", v.sinfo.fileOffset, err)
+		}
+		if n != sinfo.fileOffset {
+			return 0, xerrors.Errorf("invalid file offset: %d, actual: %d", sinfo.fileOffset, n)
+		}
+		return v.file.Read(p)
+	default:
+		return 0, xerrors.Errorf("unknown bat state: %d", bat.State)
+	}
+}
+
+func (v VHDX) TranslateOffset(physicalOffset int64) (*VHDXStateInfo, error) {
+	if physicalOffset%int64(v.MetadataTable.SystemData.LogicalSectorSize) != 0 {
+		return nil, xerrors.New("offset size error")
+	}
+	secNumber := physicalOffset / int64(v.MetadataTable.SystemData.LogicalSectorSize)
+
+	batIndex := int(secNumber) >> v.state.sectorPerBlockBits
+	batIndex += batIndex >> v.state.chunkRatioBits
+
+	blockOffset := secNumber - int64(batIndex<<v.state.sectorPerBlockBits)
+	sectorsAvail := int64(v.state.sectorPerBlock) - blockOffset
+	blockOffset = blockOffset << v.state.logicalSectorSizeBits
+
+	fileOffset := int64(v.BlockAllocationTables[batIndex].FileOffset<<20) & VHDX_BAT_FILE_OFF_MASK
+	fileOffset += blockOffset
+
+	bytesAvailable := sectorsAvail << v.state.logicalSectorSizeBits
+
+	return &VHDXStateInfo{
+		batIndex:       batIndex,
+		blockOffset:    blockOffset,
+		fileOffset:     fileOffset,
+		bytesAvailable: bytesAvailable,
+	}, nil
 }
 
 func (v VHDX) Reset() error {
-	if len(v.BitmapAllocationGroups) == 0 {
-		return xerrors.New("invalid bit map allocation groups length,  empty error")
+	if len(v.BlockAllocationTables) == 0 {
+		return xerrors.New("invalid BAT length, empty error")
 	}
 	startBat := BAT{FileOffset: math.MaxInt64}
-	for _, b := range v.BitmapAllocationGroups {
+	for _, b := range v.BlockAllocationTables {
 		if b.FileOffset != 0 && b.FileOffset < startBat.FileOffset {
 			startBat = b
 		}
@@ -67,29 +133,22 @@ func (v VHDX) currentPhysicalOffset() int64 {
 	return off
 }
 
-func (v VHDX) ReadAt(p []byte, off int64) (n int, err error) {
-	for _, bat := range v.BitmapAllocationGroups {
-		switch bat.State {
-		case PAYLOAD_BLOCK_NOT_PRESENT:
-		case PAYLOAD_BLOCK_UNDEFINED:
-		case PAYLOAD_BLOCK_ZERO:
-		case PAYLOAD_BLOCK_UNMAPPED:
-		case PAYLOAD_BLOCK_FULLY_PRESENT:
-			// _, err := v.file.Seek(int64(bat.FileOffset*uint64(_1MB)), 0)
-			// r := io.LimitReader(v.file, int64(v.MetadataTable.SystemData.FileParameter.BlockSize))
-
-		case PAYLOAD_BLOCK_PARTIALLY_PRESENT:
-		default:
+func (v VHDX) Size() int64 {
+	count := int64(0)
+	for _, b := range v.BlockAllocationTables {
+		if b.State == PAYLOAD_BLOCK_ZERO || b.State == PAYLOAD_BLOCK_FULLY_PRESENT {
+			count++
 		}
 	}
-	return 0, nil
+	count -= count >> v.state.chunkRatioBits
+	return count * int64(v.blockSize())
 }
 
 func (v VHDX) Close() error {
 	return v.file.Close()
 }
 
-func Open(name string) (*VHDX, error) {
+func Open(name string) (*io.SectionReader, error) {
 	f, err := os.Open(name)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to open %s: %w", name, err)
@@ -102,27 +161,37 @@ func Open(name string) (*VHDX, error) {
 	}
 
 	for _, entry := range v.HeaderSection.RegionTables[0].RegionTableEntries {
-		_, err := f.Seek(int64(entry.FileOffset), 0)
+		n, err := f.Seek(int64(entry.FileOffset), 0)
 		if err != nil {
-			log.Fatal(err)
+			return nil, xerrors.Errorf("failed to seek entry: %w", err)
+		}
+		if n != int64(entry.FileOffset) {
+			return nil, xerrors.Errorf("failed to seek offset: actual(%d), expected(%d)", n, entry.FileOffset)
 		}
 
 		buf := bytes.NewBuffer(nil)
-		if _, err := buf.ReadFrom(io.LimitReader(f, int64(entry.Length))); err != nil {
+		n, err = buf.ReadFrom(io.LimitReader(f, int64(entry.Length)))
+		if err != nil {
 			return nil, xerrors.Errorf("failed to read entry: %w", err)
+		}
+		if n != int64(entry.Length) {
+			return nil, xerrors.Errorf("failed to read length: actual(%d), expected(%d)", n, entry.Length)
 		}
 		switch entry.GUID.String() {
 		case BitmapAllocationGroup:
 			var bats []BAT
 			for i := 0; i < int(entry.Length)/8; i++ {
 				b := [8]byte{}
-				_, err := buf.Read(b[:])
+				n, err := buf.Read(b[:])
 				if err != nil {
 					return nil, xerrors.Errorf("failed to read entry %d buf: %w", i, err)
 				}
+				if n != len(b) {
+					return nil, xerrors.Errorf("failed to read length: actual(%d), expected(%d)", n, len(b))
+				}
 				bats = append(bats, parseBAT(b))
 			}
-			v.BitmapAllocationGroups = bats
+			v.BlockAllocationTables = bats
 		case MetadataRegion:
 			table, err := parseMetadataTable(buf)
 			if err != nil {
@@ -163,11 +232,25 @@ func Open(name string) (*VHDX, error) {
 			log.Println(entry.GUID.String())
 		}
 	}
+	v.state = v.NewState()
 
 	if err = v.Reset(); err != nil {
 		return nil, xerrors.Errorf("failed to seek initial offset: %w", err)
 	}
-	return &v, nil
+
+	return io.NewSectionReader(v, 0, v.Size()), nil
+}
+
+func (v VHDX) NewState() VHDXState {
+	chunkRatio := uint32(VHDX_MAX_SECTORS_PER_BLOCK) * v.MetadataTable.SystemData.LogicalSectorSize / v.MetadataTable.SystemData.FileParameter.BlockSize
+	sectorPerBlock := v.MetadataTable.SystemData.FileParameter.BlockSize / v.MetadataTable.SystemData.LogicalSectorSize
+	return VHDXState{
+		chunkRatio:            chunkRatio,
+		chunkRatioBits:        bits.TrailingZeros64(uint64(chunkRatio)),
+		sectorPerBlock:        sectorPerBlock,
+		sectorPerBlockBits:    bits.TrailingZeros32(sectorPerBlock),
+		logicalSectorSizeBits: bits.TrailingZeros32(v.MetadataTable.SystemData.LogicalSectorSize),
+	}
 }
 
 func (e *MetadataTableEntry) physicalSectorSize(b []byte) (uint32, error) {
@@ -212,12 +295,6 @@ func (e *MetadataTableEntry) fileParameter(b []byte) (FileParameter, error) {
 	f.HasParent = b[5]&2 == 2
 	return f, nil
 }
-
-func (e *MetadataTableEntry) item(b []byte) []byte {
-	// fmt.Printf("Offset: %d, Length: %d, range[%d ~ %d]: raw[%v]\n", e.Offset, e.Length, e.Offset, e.Length+e.Offset, b[e.Offset:e.Offset+e.Length])
-	return b[e.Offset : e.Offset+e.Length]
-}
-
 func parseMetadataTable(r io.Reader) (*MetadataTable, error) {
 	r = io.LimitReader(r, int64(_64KB))
 	defer io.ReadAll(r) // alignment
@@ -248,6 +325,7 @@ func parseMetadataTable(r io.Reader) (*MetadataTable, error) {
 		}
 		metadataTable.Entries = append(metadataTable.Entries, entry)
 	}
+
 	return &metadataTable, nil
 }
 
@@ -305,4 +383,15 @@ func parseBAT(b [8]byte) BAT {
 		State:      PayloadState(b[0]),
 		FileOffset: binary.LittleEndian.Uint64(append(b[2:], make([]byte, 3)...)) >> 4,
 	}
+}
+
+func (v VHDX) bat() (BAT, error) {
+	if len(v.BlockAllocationTables) <= v.sinfo.batIndex {
+		return BAT{}, xerrors.Errorf("invalid bat index, BAT length: %d, BAT index: %d", len(v.BlockAllocationTables), v.sinfo.batIndex)
+	}
+	return v.BlockAllocationTables[v.sinfo.batIndex], nil
+}
+
+func (e *MetadataTableEntry) item(b []byte) []byte {
+	return b[e.Offset : e.Offset+e.Length]
 }
