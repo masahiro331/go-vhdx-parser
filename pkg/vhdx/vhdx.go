@@ -15,7 +15,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-var _ io.ReaderAt = VHDX{}
+var _ io.ReaderAt = &VHDX{}
 
 type VHDX struct {
 	HeaderSection         HeaderSection // 1MB Align
@@ -44,7 +44,7 @@ type VHDXState struct {
 	logicalSectorSizeBits int
 }
 
-func (v VHDX) ReadAt(p []byte, off int64) (n int, err error) {
+func (v *VHDX) ReadAt(p []byte, off int64) (n int, err error) {
 	if len(p) != SupportSectorSize {
 		return 0, xerrors.Errorf("invalid byte length %d, required %d bytes length", len(p), SupportSectorSize)
 	}
@@ -83,7 +83,7 @@ func (v VHDX) ReadAt(p []byte, off int64) (n int, err error) {
 	}
 }
 
-func (v VHDX) TranslateOffset(physicalOffset int64) (*VHDXStateInfo, error) {
+func (v *VHDX) TranslateOffset(physicalOffset int64) (*VHDXStateInfo, error) {
 	if physicalOffset%int64(v.MetadataTable.SystemData.LogicalSectorSize) != 0 {
 		return nil, xerrors.New("offset size error")
 	}
@@ -109,7 +109,7 @@ func (v VHDX) TranslateOffset(physicalOffset int64) (*VHDXStateInfo, error) {
 	}, nil
 }
 
-func (v VHDX) Reset() error {
+func (v *VHDX) Reset() error {
 	if len(v.BlockAllocationTables) == 0 {
 		return xerrors.New("invalid BAT length, empty error")
 	}
@@ -126,20 +126,20 @@ func (v VHDX) Reset() error {
 	return nil
 }
 
-func (v VHDX) blockSize() int {
+func (v *VHDX) blockSize() int {
 	return int(v.MetadataTable.SystemData.FileParameter.BlockSize)
 }
 
-func (v VHDX) currentPhysicalOffset() int64 {
+func (v *VHDX) currentPhysicalOffset() int64 {
 	off, _ := v.file.Seek(0, io.SeekCurrent)
 	return off
 }
 
-func (v VHDX) Size() int64 {
+func (v *VHDX) Size() int64 {
 	return int64(v.MetadataTable.SystemData.VirtualDiskSize)
 }
 
-func (v VHDX) Close() error {
+func (v *VHDX) Close() error {
 	return v.file.Close()
 }
 
@@ -233,10 +233,10 @@ func Open(name string) (*io.SectionReader, error) {
 		return nil, xerrors.Errorf("failed to seek initial offset: %w", err)
 	}
 
-	return io.NewSectionReader(v, 0, v.Size()), nil
+	return io.NewSectionReader(&v, 0, v.Size()), nil
 }
 
-func (v VHDX) NewState() VHDXState {
+func (v *VHDX) NewState() VHDXState {
 	chunkRatio := VHDX_MAX_SECTORS_PER_BLOCK * int64(v.MetadataTable.SystemData.LogicalSectorSize) / int64(v.MetadataTable.SystemData.FileParameter.BlockSize)
 	sectorPerBlock := v.MetadataTable.SystemData.FileParameter.BlockSize / v.MetadataTable.SystemData.LogicalSectorSize
 	return VHDXState{
@@ -380,7 +380,7 @@ func parseBAT(b [8]byte) BAT {
 	}
 }
 
-func (v VHDX) bat() (BAT, error) {
+func (v *VHDX) bat() (BAT, error) {
 	if len(v.BlockAllocationTables) <= v.sinfo.batIndex {
 		return BAT{}, xerrors.Errorf("invalid bat index, BAT length: %d, BAT index: %d", len(v.BlockAllocationTables), v.sinfo.batIndex)
 	}
