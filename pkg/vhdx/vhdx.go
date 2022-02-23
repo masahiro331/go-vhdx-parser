@@ -3,7 +3,6 @@ package vhdx
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"github.com/google/uuid"
 	"io"
 	"log"
@@ -61,7 +60,6 @@ func (v *VHDX) ReadAt(p []byte, off int64) (n int, err error) {
 
 	switch bat.State {
 	case PAYLOAD_BLOCK_NOT_PRESENT, PAYLOAD_BLOCK_UNDEFINED, PAYLOAD_BLOCK_UNMAPPED, PAYLOAD_BLOCK_PARTIALLY_PRESENT:
-		fmt.Printf("%+v\n", v.sinfo)
 		return 0, xerrors.Errorf("unsupported bat state: %d, bat index: %d", bat.State, v.sinfo.batIndex)
 	case PAYLOAD_BLOCK_ZERO:
 		buf := bytes.NewBuffer(make([]byte, SupportSectorSize))
@@ -290,6 +288,7 @@ func (e *MetadataTableEntry) fileParameter(b []byte) (FileParameter, error) {
 	f.HasParent = b[5]&2 == 2
 	return f, nil
 }
+
 func parseMetadataTable(r io.Reader) (*MetadataTable, error) {
 	r = io.LimitReader(r, int64(_64KB))
 	defer io.ReadAll(r) // alignment
@@ -320,7 +319,6 @@ func parseMetadataTable(r io.Reader) (*MetadataTable, error) {
 		}
 		metadataTable.Entries = append(metadataTable.Entries, entry)
 	}
-
 	return &metadataTable, nil
 }
 
