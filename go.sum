@@ -1,8 +1,7 @@
-github.com/google/uuid v1.3.0 h1:t6JiXgmwXMjEs8VusXIJk2BXHsn+wx8BZdTaoZ5fu7I=
-github.com/google/uuid v1.3.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/masahiro331/go-disk v0.0.0-20220215163933-bad821cdbe16 h1:dZ/I1PYM/+cp2hJozQ1IcNK1rowILmBDnM9rlCI+UKs=
-github.com/masahiro331/go-disk v0.0.0-20220215163933-bad821cdbe16/go.mod h1:FpuMk0KxP0dQr//u24anYIDeYHACnonVXyqzgGBcauI=
-github.com/masahiro331/go-disk v0.0.0-20220220145841-bf888849647c h1:6OfIjred8wYX94xkNfUiTrHtcXa5vi8CbX8DsPTnUiU=
-github.com/masahiro331/go-disk v0.0.0-20220220145841-bf888849647c/go.mod h1:FpuMk0KxP0dQr//u24anYIDeYHACnonVXyqzgGBcauI=
+github.com/lunixbochs/struc v0.0.0-20200707160740-784aaebc1d40/go.mod h1:vy1vK6wD6j7xX6O6hXe621WabdtNkou2h7uRtTfRMyg=
+github.com/masahiro331/go-disk v0.0.0-20220220182714-f5f832728b22 h1:dxxThZ2TVix0KsvCLDZd8mWfMOiKJPjQz9AN7Yi/iqo=
+github.com/masahiro331/go-disk v0.0.0-20220220182714-f5f832728b22/go.mod h1:FpuMk0KxP0dQr//u24anYIDeYHACnonVXyqzgGBcauI=
+github.com/masahiro331/go-ext4-filesystem v0.0.0-20220223051406-4de5dcd813f3 h1:jbXAwRL/9/sL2SvjBc9O8bwOR1zt3TbAjt04U4EiN9w=
+github.com/masahiro331/go-ext4-filesystem v0.0.0-20220223051406-4de5dcd813f3/go.mod h1:6vxksi3bFan3aUUz7qhmM3QXwlopKKD45roWHsuLWKo=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
 golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
